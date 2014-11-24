@@ -1,0 +1,45 @@
+model {
+  for (i in 1:n) {
+    y[i] ~ dbin (p.bound[i], 1)
+    p.bound[i] <- max(0.000001, min(0.999999, p[i]))
+    logit(p[i]) <- y.hat[i]
+
+    y.hat[i] <- mu.gene + mu.rad*is.radical[i] + a.gene[geneXrad[i]] + x.a.domain[i] + b.inframe*inframe[i] + b.pph*pph[i] + aph*pph[i]*pph[i] + b.sift*sift[i] + b.grantham*grantham[i] + agr*grantham[i]*grantham[i] + b.hasfreq*hasfreq[i] + cons.primates[i] * b.cons[1] + cons.all[i] * b.cons[2]
+
+    x.a.domain[i] <- ifelse(domain.present[i] < 1, 0, a.domain[domain[i]])
+  }
+
+  for (j in 1:vv) {
+    y.tilde[j] <- y[testedIndex[j]]
+  }
+
+  b.pph ~ dnorm (0, .01)
+  aph ~ dnorm (0, .01)
+  b.sift ~ dnorm (0, .01)
+  b.grantham ~ dnorm (0, .01)
+  agr ~ dnorm (0, .01)
+
+  b.hasfreq ~ dnorm (0, .01)
+  for (j in 1:2) {
+    b.cons[j] ~ dnorm (0, .01)
+  }
+
+  b.inframe ~ dnorm (0, .01)
+
+  for (j in 1:k) {
+    a.gene[j] <- prior.scale*genePrior[j]
+  }
+  for (j in 1:r) {
+    a.gene[j + k] <- prior.rad.scale*genePrior[j + k]
+  }
+  prior.scale ~ dnorm (0, .01)
+  prior.rad.scale ~ dnorm (0, .01)
+  
+  mu.gene ~ dnorm (0, .01)
+  mu.rad ~ dnorm (0, .01)
+
+  for (j in 1:e) {
+    a.domain[j] ~ dnorm (0, sigma.d)
+  }
+  sigma.d ~ dgamma (0.5, 5)
+}
