@@ -1,24 +1,58 @@
 library(rjags)
 
-filePrefix <- "/Volumes/UNIXBACKUP/modelInput/"
-dataFile <- "Classified_LQTS13_Dec_6.txt"
-genePriorFile <- "GenePriors.txt"
-plotFile <- "BayesPredictor_LQTS_13_Dec_caseFreqSub.png"
+# Define working directories.
+# All input files have to reside in this directory.
+filePrefix <- "/path/to/modelInputFiles/"
+# This is a subdirectory of the directory above,
+# where all output files are written.
+resultsDir <- "Results/"
+# This is a subdirectory of the directory filePrefix with 100 files
+# specifying splitting of variants in test and training sets.
+# If effect sizes are estimated and no cross validation takes place, then
+# this directory is not used.
 permutDir <- "PredictionSets_LQTS_13_Dec12"
+
+# Input files.
+# Table of annotated rare variants.
+dataFile <- "LQTS_variants.txt"
+# Table of gene priors for one syndrome only.
+genePriorFile <- "GenePriors.txt"
+# BUGS model file.
 modelFile <- "Ruklisa_AdditionalData2_HierModelLQTSFull.bug"
-resultsFile <- "PredRes_LQTS_13_Dec_caseFreqSub.txt"
-convergFile <- "PredConv_LQTS_13_Dec_caseFreqSub.txt"
-itCount <- 5000
-plotHeader <- "13 LQTS genes, full model"
-modelType <- 12
+
+# Output files.
+# Plot of cross validation results, where probabilities of pathogenicity
+# for variants in 100 test sets are shown.
+plotFile <- "CVresults_LQTS.png"
+# File for cross validation results, i.e. probabilities
+# of pathogenicity for all variants in all test sets.
+resultsFile <- "PredRes_LQTS.txt"
+# Convergence metric for all parameters estimated via MCMC simulation
+# (typically convergence of probabilities of pathogenicity).
+convergFile <- "PredConv_LQTS.txt"
+# Prefix of plots of posterior distributions for all estimated parameters.
+coefPlotFile <- "PosteriorDistr_LQTS"
+# Table of estimated effect sizes for all model parameters.
+coefFile <- "EffectSizes_LQTS.txt"
+
+# By default this script works with LQTS data and LQTS gene priors.
+# If it is applied to another syndrome (BrS and HCM), one of the following parameters has to be changed.
+# Is this Brugada syndrome? 0 = no, 1 = yes. Affects treatment of gene priors.
 isBrugada <- 0
+# Is this HCM? 0 = no, 1 = yes. Affects treatment of gene priors.
 isHCM <- 0
 
+# Cross validation or effect size estimation? 0 = cross validation, 1 = effect sizes.
 computeCoefficients <- 0
+# Plot posterior distributions for all parameters? 0 = no, 1 = yes.
 plotPosterior <- 0
-coefPlotFile <- "PosteriorDistr_LQTS"
-coefFile <- "EffectSizes_LQTS.txt"
+
+# MCMC iteration count when cross validation is carried out.
+itCount <- 5000
+# MCMC iteration count when model parameters are estimated.
 itCountCoef <- 40000
+# Header of all output plots.
+plotHeader <- "13 LQTS genes, full model"
 
 classifiedVariants <- read.table(file=paste(filePrefix, dataFile, sep=""), sep = "\t", header=T)
 
@@ -162,15 +196,13 @@ if (isBrugada == 1) {
 }
 
 # Initialize model parameters
-if (modelType == 12) {
-  pred.inits <- function () {
-    list (mu.gene=rnorm(1, 0, 10), mu.rad=rnorm(1, 0, 10), b.pph=rnorm(pphDim, 0, 10), b.sift=rnorm(pphDim, 0, 10), b.grantham=rnorm(pphDim, 0, 10), prior.scale=rnorm(1, 0, 10), prior.rad.scale=rnorm(1, 0, 10), a.domain=rnorm(length(levels(factor(domainGroups[ domainPresent == 1 ]))), 0, 10), sigma.d=rgamma(1, 0.5, 5), b.inframe=rnorm(1, 0, 10), b.hasfreq=rnorm(1, 0, 10), b.cons=rnorm(2, 0, 10), aph=rnorm(1, 0, 10), agr=rnorm(1, 0, 10))
-  }
+pred.inits <- function () {
+  list (mu.gene=rnorm(1, 0, 10), mu.rad=rnorm(1, 0, 10), b.pph=rnorm(pphDim, 0, 10), b.sift=rnorm(pphDim, 0, 10), b.grantham=rnorm(pphDim, 0, 10), prior.scale=rnorm(1, 0, 10), prior.rad.scale=rnorm(1, 0, 10), a.domain=rnorm(length(levels(factor(domainGroups[ domainPresent == 1 ]))), 0, 10), sigma.d=rgamma(1, 0.5, 5), b.inframe=rnorm(1, 0, 10), b.hasfreq=rnorm(1, 0, 10), b.cons=rnorm(2, 0, 10), aph=rnorm(1, 0, 10), agr=rnorm(1, 0, 10))
 }
 
 if (computeCoefficients == 0) {
   # Cross validation, where pathogenicity of variants from a test set is predicted.
-  png(paste(filePrefix, "Results/", plotFile, sep=""), height=550, width=800)
+  png(paste(filePrefix, resultsDir, plotFile, sep=""), height=550, width=800)
   par(omi=c(0,0,0,0))
   par(mar=c(3.5,4,2,0))  
 
@@ -232,8 +264,8 @@ if (computeCoefficients == 0) {
   }
   dev.off()
 
-  write.table(resultsMatrix, file=paste(filePrefix, "Results/", resultsFile, sep=""), sep = "\t", row.names=F, col.names=F, quote=F)
-  write.table(convMatrix, file=paste(filePrefix, "Results/", convergFile, sep=""), sep = "\t", row.names=F, col.names=F, quote=F)
+  write.table(resultsMatrix, file=paste(filePrefix, resultsDir, resultsFile, sep=""), sep = "\t", row.names=F, col.names=F, quote=F)
+  write.table(convMatrix, file=paste(filePrefix, resultsDir, convergFile, sep=""), sep = "\t", row.names=F, col.names=F, quote=F)
 } else {
   # Compute effect sizes for all model terms
   parList <- c("sigma.d", "prior.scale", "prior.rad.scale", "a.gene", "a.domain", "b.pph", "b.sift", "b.grantham", "mu.gene", "mu.rad", "b.inframe", "b.hasfreq", "b.cons", "aph", "agr", "y.tilde")
@@ -338,7 +370,7 @@ if (computeCoefficients == 0) {
   
   parSummary <- cbind(allMeans, allMedians)
   dimnames(parSummary)[[2]] <- c("coef.mean", "coef.median")
-  write.table(as.data.frame(parSummary), file=paste(filePrefix, "Results/", coefFile, sep=""), sep = "\t", row.names=T, col.names=T, quote=F)
+  write.table(as.data.frame(parSummary), file=paste(filePrefix, resultsDir, coefFile, sep=""), sep = "\t", row.names=T, col.names=T, quote=F)
 
   if (plotPosterior == 1) {
     # Plot posterior distributions of all model parameters
@@ -352,7 +384,7 @@ if (computeCoefficients == 0) {
       limit <- min(blockStart + pageSize, dim(coefArray)[[1]])
       firstIm <- blockStart + 1
 
-      png(paste(filePrefix, "Results/", coefPlotFile, "_", h, ".png", sep=""), height=550, width=1000)
+      png(paste(filePrefix, resultsDir, coefPlotFile, "_", h, ".png", sep=""), height=550, width=1000)
       par(omi=c(0.05,0.05,0.4,0))
       par(mar=c(4,4,6,1))
       par(mfrow=c(lengthGr, widthGr))
